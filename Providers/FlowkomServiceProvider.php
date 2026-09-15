@@ -10,6 +10,7 @@ use Modules\Flowkom\Services\MailCleaner;
 use Modules\Flowkom\Services\Mergers;
 use Modules\Flowkom\Services\QuickLinks;
 use Modules\Flowkom\Services\Settings;
+use Modules\Flowkom\Services\TicketHints;
 
 define('FLOWKOM_MODULE', 'flowkom');
 
@@ -173,22 +174,20 @@ class FlowkomServiceProvider extends ServiceProvider
         }
 
         \Eventy::addAction('conversation.after_customer_sidebar', function ($conversation) use ($apiUrl, $apiKey) {
-            $customer = $conversation->customer;
-            $email = '';
-            $customerName = '';
-            if ($customer) {
-                $email = $conversation->customer_email ?? '';
-                if (empty($email) && method_exists($customer, 'getMainEmail')) {
-                    $email = (string) $customer->getMainEmail();
-                }
-                $customerName = trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+            // Merkmale serverseitig und typisiert (PROJ-861) — das Widget liest
+            // nichts mehr aus dem DOM und schickt nie eine Artikelnummer als
+            // Bestellnummer. Fail-open: ohne Merkmale zeigt das Widget einen Hinweis.
+            try {
+                $hints = TicketHints::fromConversation($conversation);
+            } catch (\Throwable $e) {
+                \Helper::log(FLOWKOM_MODULE, 'TicketHints-ERROR: ' . $e->getMessage());
+                $hints = TicketHints::extract((string) ($conversation->customer_email ?? ''), '', '', []);
             }
 
             echo view('flowkom::widget', [
                 'apiUrl'           => $apiUrl,
                 'apiKey'           => $apiKey,
-                'customerEmail'    => $email,
-                'customerName'     => $customerName,
+                'hints'            => $hints,
                 'trackingTemplate' => Settings::trackingTemplate(),
                 'trackingOn'       => Settings::featureOn('tracking_reply'),
             ])->render();

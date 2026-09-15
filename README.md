@@ -6,7 +6,7 @@ Ein Modul, volles Paket: verbindet FreeScout mit Flowkom und macht Marktplatz-Su
 
 | Funktion | Beschreibung |
 |---|---|
-| **Flowkom-Widget** | Kundendaten, Bestellungen & Tracking aus Flowkom in der Ticket-Sidebar |
+| **Flowkom-Widget** | Kundendaten, Bestellungen & Tracking aus Flowkom in der Ticket-Sidebar. **Zuordnungs-Ampel** zeigt, wie sicher das Ticket zur Bestellung gehört: grün = eindeutig (Bestellnummer, bzw. Käufer + Artikel), gelb = richtiger Käufer, Bestellung nicht eindeutig, rot = Merkmale widersprechen sich (dann keine Kundendaten, kein Tracking), grau = nicht zugeordnet. Merkmale werden serverseitig und typisiert erkannt (Absender, Betreff, Kundenname, letzte Kundennachrichten) — eine eBay-Artikelnummer gilt nie als Bestellnummer |
 | **QuickLinks** | Ein Klick zu: Bestellung im eBay Seller Hub / Amazon Seller Central, eBay-Käuferkonversation, Artikelseite |
 | **Mail-Cleaner** | Blendet den Template-Müll aus eBay-/Amazon-Mails **nur in der Ticket-Ansicht** aus — Ticket zeigt nur Kundennachricht + Bestelldaten, Käuferfotos bleiben erhalten. **Wichtig:** der gespeicherte Body bleibt IMMER das Original (nur so bleiben eBays versteckte Zustell-Marker in der zitierten Historie erhalten; ein ersetzter Body führte zu Bounces — nie wieder einen fetch-time-Body-Ersatz einbauen). Fail-open: Unbekanntes bleibt unverändert |
 | **eBay Ticket-Merger** | Folgenachrichten desselben Käufers zum selben Artikel landen im selben Ticket |
@@ -29,6 +29,7 @@ Die Marktplatz-Erkennung läuft über den **Absender** (`…@members.ebay.de`, `
 ## Sicherheit / Design-Entscheidungen
 
 - Merge nur bei eindeutiger Zuordnung (Käufer **und** Artikel bzw. Bestellnummer) — ein Fehl-Merge an den falschen Kunden ist ausgeschlossen.
+- Bestellzuordnung im Widget: Flowkom sucht nur exakte Merkmale und meldet Widersprüche, statt zu raten. Ab Flowkom mit PROJ-861 wirkt das auch für ältere Modul-Versionen; die Ampel braucht Modul ≥ 2.5.0.
 - Mail-Pipeline komplett fail-open: Jeder interne Fehler führt zu einem normalen, unveränderten Ticket. Mails können nie verloren gehen.
 - QuickLinks werden kanonisch aus Bestelldaten gebaut — keine tokenisierten Links aus Mails (Ablauf/Leak-Gefahr).
 - Der Flowkom-API-Key sollte in Flowkom auf den FreeScout-Lookup-Endpoint beschränkt sein.
