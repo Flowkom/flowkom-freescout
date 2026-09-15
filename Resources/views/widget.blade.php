@@ -13,6 +13,16 @@
 #flowkom-widget .fk-lnk-m{background:#ff9900}
 #flowkom-widget .fk-trk a{font-size:11px;color:#0068c8;text-decoration:none;word-break:break-all}
 #flowkom-widget .fk-err{padding:12px 10px;text-align:center;color:#888;font-size:12px}
+#flowkom-widget .fk-match{display:flex;align-items:flex-start;gap:7px;padding:7px 10px;border-top:1px solid #e5e8ed;background:#fff}
+#flowkom-widget .fk-dot{flex:none;width:9px;height:9px;border-radius:50%;margin-top:3px}
+#flowkom-widget .fk-match-exact .fk-dot{background:#16a34a}
+#flowkom-widget .fk-match-probable .fk-dot{background:#d97706}
+#flowkom-widget .fk-match-conflict .fk-dot{background:#dc2626}
+#flowkom-widget .fk-match-none .fk-dot{background:#9ca3af}
+#flowkom-widget .fk-match-conflict{background:#fef2f2}
+#flowkom-widget .fk-match-probable{background:#fffbeb}
+#flowkom-widget .fk-match-t{font-size:11px;font-weight:600;color:#1f2937}
+#flowkom-widget .fk-match-r{font-size:10px;color:#6b7280;line-height:1.35;margin-top:1px}
 </style>
 
 <div id="flowkom-widget">
@@ -27,8 +37,8 @@
 (function(){
     var API_URL = {!! json_encode($apiUrl) !!};
     var API_KEY = {!! json_encode($apiKey) !!};
-    var EMAIL   = {!! json_encode($customerEmail) !!};
-    var CUSTOMER_NAME = {!! json_encode($customerName ?? '') !!};
+    // PROJ-861: typisierte Ticketmerkmale, serverseitig erkannt (TicketHints).
+    var HINTS = {!! json_encode($hints ?? new \stdClass()) !!};
     var TRACKING_TPL  = {!! json_encode($trackingTemplate ?? '') !!};
     var TRACKING_ON   = {!! json_encode(!empty($trackingOn)) !!};
     var w = document.getElementById('flowkom-widget');
@@ -40,41 +50,18 @@
     function loadData() {
         content.textContent = 'Lade Daten...';
         content.className = 'fk-sec';
+        clearW();
+        w.appendChild(content);
 
-        var orderNum = null;
-        // Subject NUR aus spezifischen Betreff-Elementen lesen.
-        // NICHT document.title oder h1/h2 verwenden — die enthalten FreeScouts
-        // Konversationsnummer (#60358), die fälschlich das Shopify-Pattern matcht.
-        var subjParts = [];
-        var subjEls = document.querySelectorAll('.conv-subject, .conv-subj, .conversation-subject, #conv-subject, .thread-title');
-        for (var s = 0; s < subjEls.length; s++) {
-            var t = (subjEls[s].textContent || '').trim();
-            if (t) subjParts.push(t);
+        var keys = ['email', 'ebay_username', 'ebay_order_id', 'ebay_item_id', 'amazon_order_id', 'order_number', 'channel'];
+        var params = [], hasHint = false;
+        for (var i = 0; i < keys.length; i++) {
+            var v = HINTS[keys[i]];
+            if (v === null || v === undefined || v === '') continue;
+            params.push(keys[i] + '=' + encodeURIComponent(v));
+            if (keys[i] !== 'channel') hasHint = true;
         }
-        var subj = subjParts.join(' ');
-        var patterns = [
-            /(\d{3}-\d{7}-\d{7})/,               // Amazon
-            /(\d{2}-\d{5}-\d{5})/,               // eBay
-            /Auftrags-Nr\.?\s+([a-z0-9]{8,})/i,  // Otto
-            /#(\d{4,})/                          // Shopify/numerisch
-        ];
-        for (var p = 0; p < patterns.length; p++) {
-            var m = subj.match(patterns[p]);
-            if (m) { orderNum = m[1]; break; }
-        }
-
-        // Extract eBay username from customer name (pattern: "eBay - username")
-        var ebayUser = null;
-        if (CUSTOMER_NAME) {
-            var ebayMatch = CUSTOMER_NAME.match(/^eBay\s*-\s*(.+)$/i);
-            if (ebayMatch) ebayUser = ebayMatch[1].trim();
-        }
-
-        var params = [];
-        if (EMAIL) params.push('email=' + encodeURIComponent(EMAIL));
-        if (orderNum) params.push('order_number=' + encodeURIComponent(orderNum));
-        if (ebayUser) params.push('ebay_username=' + encodeURIComponent(ebayUser));
-        if (!params.length) { showMsg('Keine E-Mail gefunden.'); return; }
+        if (!hasHint) { showMsg('Keine Merkmale im Ticket gefunden.'); return; }
 
         fetch(API_URL + '/api/freescout/lookup?' + params.join('&'), {
             headers: { 'Authorization': 'Bearer ' + API_KEY }
@@ -95,12 +82,52 @@
 
     function mk(tag, cls) { var e = document.createElement(tag); if (cls) e.className = cls; return e; }
     function sl(s) { return {open:'Offen',in_progress:'In Bearbeitung',shipped:'Versendet',completed:'Abgeschlossen',cancelled:'Storniert',pending:'Ausstehend',picked:'Gepickt'}[s]||s; }
-    function cl(c) { return {amazon:'Amazon',shopify:'Shopify',ebay:'eBay',kaufland:'Kaufland',manual:'Manuell'}[c]||c; }
+    function cl(c) { return {amazon:'Amazon',shopify:'Shopify',ebay:'eBay',kaufland:'Kaufland',otto:'Otto',manual:'Manuell'}[c]||c; }
     function fd(d) { return d ? new Date(d).toLocaleDateString('de-DE') : ''; }
+
+    // Ampel: wie sicher gehört das Ticket zu dieser Bestellung?
+    var LEVEL_TITLE = {
+        exact: 'Eindeutig zugeordnet',
+        probable: 'Nicht eindeutig — bitte prüfen',
+        conflict: 'Widersprüchlich — nicht zugeordnet',
+        none: 'Nicht zugeordnet'
+    };
+    var VIA_LABEL = { order_number: 'Bestellnummer', ebay_username: 'eBay-Käufer', ebay_item: 'Artikelnummer', email: 'E-Mail' };
+
+    function renderMatch(match) {
+        var level = LEVEL_TITLE[match.level] ? match.level : 'none';
+        var box = mk('div', 'fk-match fk-match-' + level);
+        box.appendChild(mk('span', 'fk-dot'));
+        var txt = mk('div');
+        var t = mk('div', 'fk-match-t');
+        var via = (match.via || []).map(function(v) { return VIA_LABEL[v] || v; });
+        t.textContent = LEVEL_TITLE[level] + (via.length ? ' · über ' + via.join(' + ') : '');
+        txt.appendChild(t);
+        if (match.reason) { var r = mk('div', 'fk-match-r'); r.textContent = match.reason; txt.appendChild(r); }
+        box.appendChild(txt);
+        return box;
+    }
 
     function renderData(data) {
         clearW();
-        if (!data.customer && !(data.orders||[]).length) { showMsg('Kein Kunde in Flowkom gefunden.'); return; }
+        var match = data.match || null; // null = älterer Flowkom-Server ohne Ampel
+        if (match) w.appendChild(renderMatch(match));
+
+        if (match && match.level === 'conflict') {
+            var list = data.conflict_orders || [];
+            if (list.length) {
+                var cs = mk('div', 'fk-sec');
+                var lb = mk('div', 'fk-lbl'); lb.textContent = 'Passende Aufträge (bitte prüfen)'; cs.appendChild(lb);
+                list.forEach(function(o) { cs.appendChild(renderCompact(o, true)); });
+                w.appendChild(cs);
+            }
+            return;
+        }
+
+        if (!data.customer && !(data.orders||[]).length) {
+            if (!match) showMsg('Kein Kunde in Flowkom gefunden.');
+            return;
+        }
 
         if (data.customer) {
             var cs = mk('div','fk-sec');
@@ -117,29 +144,26 @@
             w.appendChild(cs);
         }
 
-        var orders = data.orders||[], hl = data.highlighted_order, main = null, rest = [];
-        for (var i = 0; i < orders.length; i++) {
-            if (hl && orders[i].order_number === hl && !main) main = orders[i]; else rest.push(orders[i]);
-        }
-        if (!main && orders.length) { main = orders[0]; rest = orders.slice(1); }
-        if (main) w.appendChild(renderOrder(main));
+        // Flowkom liefert den Hauptauftrag immer zuerst.
+        var orders = data.orders||[], main = orders[0] || null, rest = orders.slice(1);
+        if (main) w.appendChild(renderOrder(main, match));
         if (rest.length) {
             var ms = mk('div','fk-sec'), det = document.createElement('details'), sum = document.createElement('summary');
             sum.style.cssText='cursor:pointer;font-size:11px;color:#555;font-weight:500';
             sum.textContent = 'Weitere ('+rest.length+')'; det.appendChild(sum);
-            for (var r=0;r<rest.length;r++) det.appendChild(renderCompact(rest[r]));
+            for (var r=0;r<rest.length;r++) det.appendChild(renderCompact(rest[r], false));
             ms.appendChild(det); w.appendChild(ms);
         }
     }
 
-    function renderOrder(o) {
+    function renderOrder(o, match) {
         var s = mk('div','fk-sec fk-hl');
         var hr = mk('div'); hr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:3px';
-        var lb = mk('div','fk-lbl'); lb.textContent='Aktuelle Bestellung'; hr.appendChild(lb);
+        var lb = mk('div','fk-lbl'); lb.textContent = (match && match.level === 'probable') ? 'Neueste Bestellung' : 'Aktuelle Bestellung'; hr.appendChild(lb);
         var bg = mk('span','fk-badge'); bg.textContent=sl(o.status); hr.appendChild(bg); s.appendChild(hr);
         var nm = mk('div'); nm.style.cssText='font-size:12px;font-weight:600;color:#1e40af'; nm.textContent=o.order_number||''; s.appendChild(nm);
-        var mt = mk('div'); mt.style.cssText='font-size:10px;color:#888;margin-bottom:5px'; mt.textContent=cl(o.channel)+' \u00B7 '+fd(o.created_at); s.appendChild(mt);
-        (o.items||[]).forEach(function(it){ var d=mk('div'); d.style.cssText='font-size:11px;padding:1px 0'; d.textContent=it.quantity+'\u00D7 '+(it.name||''); s.appendChild(d); });
+        var mt = mk('div'); mt.style.cssText='font-size:10px;color:#888;margin-bottom:5px'; mt.textContent=cl(o.channel)+' · '+fd(o.created_at); s.appendChild(mt);
+        (o.items||[]).forEach(function(it){ var d=mk('div'); d.style.cssText='font-size:11px;padding:1px 0'; d.textContent=it.quantity+'× '+(it.name||''); s.appendChild(d); });
         (o.shipments||[]).forEach(function(sh){
             var tr=mk('div','fk-trk'); tr.style.marginTop='3px';
             var c=mk('span'); c.style.fontWeight='600'; c.textContent=(sh.carrier||'')+': '; tr.appendChild(c);
@@ -147,10 +171,16 @@
             else{var tn=mk('span');tn.textContent=sh.tracking_number||'';tr.appendChild(tn);}
             s.appendChild(tr);
         });
-        if (TRACKING_ON && (o.shipments||[]).length && o.shipments[0].tracking_number) {
+        // Tracking-Button nur bei eindeutiger oder käufer-sicherer Zuordnung;
+        // bei „nicht eindeutig" steht die Bestellnummer im Button.
+        var trackingAllowed = !match || match.level === 'exact' || match.level === 'probable';
+        if (TRACKING_ON && trackingAllowed && (o.shipments||[]).length && o.shipments[0].tracking_number) {
             var tb=mk('button','fk-track-reply'); tb.type='button';
-            tb.style.cssText='margin-top:6px;width:100%;padding:5px 0;border:0;border-radius:3px;background:#16a34a;color:#fff;font-size:11px;font-weight:600;cursor:pointer';
-            tb.textContent='\u2709 Antwort mit Tracking einf\u00fcgen';
+            var probable = match && match.level === 'probable';
+            tb.style.cssText='margin-top:6px;width:100%;padding:5px 0;border:0;border-radius:3px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;background:' + (probable ? '#d97706' : '#16a34a');
+            tb.textContent = probable
+                ? '✉ Tracking von ' + (o.order_number || 'dieser Bestellung') + ' einfügen'
+                : '✉ Antwort mit Tracking einfügen';
             tb.addEventListener('click', function(){ fkInsertTracking(o); });
             s.appendChild(tb);
         }
@@ -161,12 +191,16 @@
         return s;
     }
 
-    function renderCompact(o) {
+    function renderCompact(o, withLink) {
         var d=mk('div'); d.style.cssText='padding:4px 0;border-top:1px solid #eee;margin-top:3px';
         var r=mk('div'); r.style.cssText='display:flex;justify-content:space-between;align-items:center';
         var n=mk('span'); n.style.cssText='font-size:11px;font-weight:600'; n.textContent=o.order_number||''; r.appendChild(n);
         var b=mk('span','fk-badge'); b.style.fontSize='9px'; b.textContent=sl(o.status); r.appendChild(b); d.appendChild(r);
-        var m=mk('div'); m.style.cssText='font-size:10px;color:#888'; m.textContent=cl(o.channel)+' \u00B7 '+fd(o.created_at); d.appendChild(m);
+        var m=mk('div'); m.style.cssText='font-size:10px;color:#888'; m.textContent=cl(o.channel)+' · '+fd(o.created_at); d.appendChild(m);
+        if (withLink && o.flowkom_url) {
+            var a=document.createElement('a'); a.setAttribute('href',o.flowkom_url); a.setAttribute('target','_blank');
+            a.style.cssText='font-size:10px;color:#1e40af'; a.textContent='In Flowkom prüfen'; d.appendChild(a);
+        }
         return d;
     }
     /* Tracking-Antwort in den Reply-Editor einfuegen (vor der Signatur). */

@@ -41,39 +41,16 @@ class QuickLinks
         if (empty($conversation) || empty($conversation->customer_email)) {
             return null;
         }
-        $from = strtolower($conversation->customer_email);
-        $subject = (string) $conversation->subject;
+        // Dieselbe Erkennung wie das Flowkom-Widget (PROJ-861), damit
+        // QuickLinks und Bestellzuordnung nie unterschiedliche Merkmale sehen.
+        $hints = TicketHints::fromConversation($conversation);
 
-        $thread = $conversation->threads()
-            ->where('type', \App\Thread::TYPE_CUSTOMER)
-            ->orderBy('created_at', 'desc')
-            ->first();
-        $haystack = $subject . "\n" . ($thread ? (string) $thread->body : '');
-
-        if (preg_match('/@members\.ebay\./', $from)) {
+        if ($hints['channel'] === 'ebay') {
             $ebayDomain = Settings::ebayDomain();
             $items = [];
-
-            $item = null;
-            if (preg_match('/(?:Artikelnr\.|Item number)\s*:?\s*(\d{9,14})/iu', $haystack, $m)) {
-                $item = $m[1];
-            } elseif (preg_match('/#(\d{12,14})\b/', $subject, $m)) {
-                $item = $m[1];
-            }
-
-            $order = null;
-            if (preg_match('/\b(\d{2}-\d{5}-\d{5})\b/', $haystack, $m)) {
-                $order = $m[1];
-            }
-
-            $buyer = null;
-            if (preg_match('/(?:Betreff:\s*)?(?:AW:\s*)*([A-Za-z0-9._\-*]{3,64})\s+(?:hat eine Nachricht gesendet|sent a message)/u', $subject, $m)) {
-                $buyer = $m[1];
-            } elseif ($conversation->customer
-                && preg_match('/^eBay\s*-\s*(.+)$/i', trim($conversation->customer->first_name . ' ' . $conversation->customer->last_name), $m)
-            ) {
-                $buyer = trim($m[1]);
-            }
+            $order = $hints['ebay_order_id'];
+            $item = $hints['ebay_item_id'];
+            $buyer = $hints['ebay_username'];
 
             if ($order) {
                 $items[] = ['Bestellung im Seller Hub', 'https://www.' . $ebayDomain . '/sh/ord/details?orderid=' . rawurlencode($order)];
@@ -88,11 +65,11 @@ class QuickLinks
             return $items ? ['source' => 'ebay', 'items' => $items] : null;
         }
 
-        if (strpos($from, '@marketplace.amazon.') !== false) {
+        if ($hints['channel'] === 'amazon') {
             $scDomain = Settings::scDomain();
             $items = [];
-            if (preg_match('/\b(\d{3}-\d{7}-\d{7})\b/', $haystack, $m)) {
-                $items[] = ['Bestellung in Seller Central', 'https://' . $scDomain . '/orders-v3/order/' . rawurlencode($m[1])];
+            if ($hints['amazon_order_id']) {
+                $items[] = ['Bestellung in Seller Central', 'https://' . $scDomain . '/orders-v3/order/' . rawurlencode($hints['amazon_order_id'])];
                 $items[] = ['Messaging-Postfach', 'https://' . $scDomain . '/messaging/inbox'];
             }
             return $items ? ['source' => 'amazon', 'items' => $items] : null;
