@@ -28,6 +28,7 @@ Die Marktplatz-Erkennung läuft über den **Absender** (`…@members.ebay.de`, `
 
 ## Sicherheit / Design-Entscheidungen
 
+- Bei kurzen Mails blieb die Seitenleiste früher unten abgeschnitten (FreeScout-Layout: absolut positionierte Spalte in einem 0 Pixel hohen Container, `#app` mit `overflow:hidden`). Das Modul misst nach und gibt der Nachrichtenspalte genug Mindesthöhe — die Seite wird dann normal scrollbar.
 - Merge nur bei eindeutiger Zuordnung (Käufer **und** Artikel bzw. Bestellnummer) — ein Fehl-Merge an den falschen Kunden ist ausgeschlossen.
 - Bestellzuordnung im Widget: Flowkom sucht nur exakte Merkmale und meldet Widersprüche, statt zu raten. Ab Flowkom mit PROJ-861 wirkt das auch für ältere Modul-Versionen; die Ampel braucht Modul ≥ 2.5.0.
 - Mail-Pipeline komplett fail-open: Jeder interne Fehler führt zu einem normalen, unveränderten Ticket. Mails können nie verloren gehen.

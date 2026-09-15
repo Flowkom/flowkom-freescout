@@ -10,6 +10,7 @@ use Modules\Flowkom\Services\MailCleaner;
 use Modules\Flowkom\Services\Mergers;
 use Modules\Flowkom\Services\QuickLinks;
 use Modules\Flowkom\Services\Settings;
+use Modules\Flowkom\Services\SidebarFit;
 use Modules\Flowkom\Services\TicketHints;
 
 define('FLOWKOM_MODULE', 'flowkom');
@@ -99,6 +100,11 @@ class FlowkomServiceProvider extends ServiceProvider
             }
             return $send;
         }, 20, 5);
+
+        // Layout-Korrektur: ohne sie schneidet FreeScout bei kurzen Mails alles
+        // ab, was unter der Nachrichtenspalte liegt — also unsere Bloecke.
+        // Immer aktiv, kein Schalter (siehe Services/SidebarFit).
+        SidebarFit::register();
 
         if (Settings::featureOn('quicklinks')) {
             QuickLinks::register();
