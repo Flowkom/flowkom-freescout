@@ -12,7 +12,7 @@ jobs:
       - name: Build module ZIP (Ordner Flowkom/ im Root, wie FreeScout ihn erwartet)
         run: |
           mkdir -p /tmp/build/Flowkom
-          rsync -a --exclude='.git' --exclude='.github' ./ /tmp/build/Flowkom/
+          rsync -a --exclude='.git' --exclude='.github' --exclude='.claude' ./ /tmp/build/Flowkom/
           cd /tmp/build && zip -rq Flowkom.zip Flowkom
       - name: Version gegen module.json pruefen
         run: |
