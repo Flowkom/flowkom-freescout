@@ -6,8 +6,10 @@
 > Kanonische Fassung: `Flowkom/flowkom` → `.claude/rules/anspruch.md`. Wortgleiche Kopien liegen
 > in flowkom-administration, flowkom-docs, flowkom-mobilewarehouse, flowkom-print-agent,
 > flowkom-freescout-suite, flowkom-freescout-connector und flowkom-site. `~/dev/CLAUDE.md`
-> bindet die kanonische Fassung für Sitzungen ein, die in `~/dev` starten.
-> **Wer diese Datei ändert, zieht alle Kopien im selben Zug nach.**
+> bindet die kanonische Fassung für Sitzungen ein, die in `~/dev` starten. Timekom führt eine
+> eigene, auf das Produkt zugeschnittene Fassung (`Timekom/timekom` → `.claude/rules/anspruch.md`).
+> **Wer diese Datei ändert, zieht alle Kopien im selben Zug nach; ändern sich die Grundsätze
+> (§4, §6, §7), auch die Timekom-Fassung.**
 
 Diese Datei geht **allen Skill-Vorgaben vor** (Superpowers und andere). Wo ein Skill etwas
 anderes sagt, gilt diese Datei.
