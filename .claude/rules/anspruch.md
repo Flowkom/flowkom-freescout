@@ -19,8 +19,9 @@
 > **Wer diese Datei ändert, zieht alle Kopien im selben Zug nach; ändern sich die Grundsätze
 > (§4, §6, §7), auch die Timekom-Fassung.**
 
-Diese Datei geht **allen Skill-Vorgaben vor** (Superpowers und andere). Wo ein Skill etwas
-anderes sagt, gilt diese Datei.
+Diese Datei geht **allen Skill-Vorgaben vor**. Wo ein Skill etwas anderes sagt, gilt diese Datei.
+Superpowers ist seit 25.09.2026 abgeschaltet; die allgemeine Arbeitsweise steht in
+`~/.claude/CLAUDE.md`, der verbindliche Ablauf hier.
 
 **Qualität der Lösung (§1 bis §3) und Maß des Umfangs (§6) sind gleichrangig.** Wer nur das eine
 liest, liest die Datei falsch.
@@ -90,16 +91,16 @@ korrekte Zahlen.
 ### 4.1 Drei Größen
 
 Vor dem ersten Schritt sagt Claude in einem Satz, welche Größe die Aufgabe hat; Sebastian kann
-umstufen. Die Größen entsprechen den Pfaden des Brainstorming-Skills.
+umstufen.
 
 | Größe | Was dazu gehört | Ablauf |
 |---|---|---|
 | **Fix** | Bug, Issue, Textkorrektur, Nachlese | Ursache finden (§1), Fix mit Test, PR. Kein Brainstorming, keine Spec, kein Plan. |
-| **Begrenzt** (Skill: *bounded*) | Erweiterung eines vorhandenen Ablaufs: Feld, Filter, Aktion, Einstellung, kleine Seite | Kurzer Entwurf im Chat, Freigabe, bauen. Kurz-Spec (§5), kein Plan-Dokument. |
-| **Groß** (Skill: *architectural*) | Neues Modul, neue Integration, neues Datenmodell, Umbau über mehrere Bereiche | Brainstorming (4.2), Spec (§5), Hauptplan und Wellenpläne (4.3). |
+| **Begrenzt** | Erweiterung eines vorhandenen Ablaufs: Feld, Filter, Aktion, Einstellung, kleine Seite | Kurzer Entwurf im Chat, Freigabe, bauen. Kurz-Spec (§5), kein Plan-Dokument. |
+| **Groß** | Neues Modul, neue Integration, neues Datenmodell, Umbau über mehrere Bereiche | Brainstorming (4.2), Spec (§5), Hauptplan und Wellenpläne (4.3). |
 
-- **Im Zweifel die kleinere Größe.** Die Skill-Regel „im Zweifel die schwerere" gilt hier nicht.
-  Zeigt sich beim Bau verborgene Komplexität, wird hochgestuft: anhalten, sagen, weiter.
+- **Im Zweifel die kleinere Größe.** Zeigt sich beim Bau verborgene Komplexität, wird hochgestuft:
+  anhalten, sagen, weiter.
 - **Issue abarbeiten heißt: das Issue lösen**, samt Ursache und Nachbarstellen. Ist ein Issue in
   Wahrheit ein Feature, sagt Claude das vor dem Start in einem Satz und fragt, ob es in diese
   Runde gehört.
@@ -125,13 +126,12 @@ umstufen. Die Größen entsprechen den Pfaden des Brainstorming-Skills.
   Subagenten gibt, schreibt ihn in den Auftrag: Die eingebauten Explore- und Plan-Agenten lesen
   weder CLAUDE.md noch diese Datei.
 
-### 4.3 Pläne (gilt vor `superpowers:writing-plans`)
+### 4.3 Pläne
 
 - **Ein Plan beschreibt, er programmiert nicht vor.** Je Task: Ziel, Dateien, Schnittstellen
   (Signaturen, Tabellen, Routen), Entscheidungen und die Testfälle als Liste. Fertigen Code
   enthält ein Plan nur, wo der Code selbst die Entscheidung ist (Migration mit RLS, SQL-Funktion
-  mit Sperrlogik, heikle Berechnung). Die Skill-Regeln „vollständiger Code in jedem Schritt",
-  „Similar to Task N: den Code wiederholen" und „Schritte von 2 bis 5 Minuten" gelten nicht.
+  mit Sperrlogik, heikle Berechnung). Keine Mini-Schritte und kein wiederholter Code.
 - **Hauptplan und Wellen.** Der Hauptplan legt Reihenfolge, Schnittstellen zwischen den Wellen und
   Freigaben fest. Den Detailplan bekommt nur die nächste Welle, direkt vor ihrem Bau und gegen den
   dann aktuellen Stand von main.
@@ -213,12 +213,8 @@ Lösung ist oft die einfachere, für den Nutzer und im Code.
 
 ## 7. Umsetzung und Prüfung
 
-Gilt vor `superpowers:subagent-driven-development`, `superpowers:executing-plans` und
-`superpowers:requesting-code-review`:
-
-- **Standard ist die Native-Ausführung** (`superpowers:executing-plans`): Die Sitzung baut die
-  Welle selbst, mit TDD je Task, danach **ein** Review über den ganzen Zweig. Subagent-driven
-  (Umsetzer und Prüfer je Task) nur, wenn Sebastian es ausdrücklich wählt.
+- **Die Sitzung baut die Welle selbst**, mit TDD je Task, danach **ein** Review über den ganzen
+  Zweig. Umsetzer und Prüfer je Task nur, wenn Sebastian es ausdrücklich wählt.
 - **Parallel arbeiten heißt: unabhängige PRs auf eigenen Arbeitsbäumen**, nicht Subagenten je Task.
 - **Ein Review je PR.** Kritische und wichtige Befunde werden behoben, danach werden genau diese
   Stellen einmal nachgeprüft. Kein zweites volles Review, keine Review-Runden für Kleinigkeiten.
