@@ -1,4 +1,4 @@
-# Anspruch: Flowkom ist High-Value-Software (MANDATORY)
+# Anspruch: Flowkom ist High-Value-Software
 
 > Festgelegt von Sebastian am 22.09.2026, Fassung 2 vom 25.09.2026. Gilt für **alle
 > Flowkom-Repos** und für jede Arbeit daran: Code, Specs, Brainstorming, Mockups, Hilfeseiten,
@@ -20,8 +20,6 @@
 > (§4, §6, §7), auch die Timekom-Fassung.**
 
 Diese Datei geht **allen Skill-Vorgaben vor**. Wo ein Skill etwas anderes sagt, gilt diese Datei.
-Superpowers ist seit 25.09.2026 abgeschaltet; die allgemeine Arbeitsweise steht in
-`~/.claude/CLAUDE.md`, der verbindliche Ablauf hier.
 
 **Qualität der Lösung (§1 bis §3) und Maß des Umfangs (§6) sind gleichrangig.** Wer nur das eine
 liest, liest die Datei falsch.
@@ -203,11 +201,15 @@ Lösung ist oft die einfachere, für den Nutzer und im Code.
   wenn es im Umfang liegt, sonst wird es ein GitHub-Issue und im Abschluss genannt. Aus einem
   Befund wird kein neues Vorhaben, keine neue Mockup-Runde und keine neue Welle.
 - **Der Umfang einer laufenden Welle ist eingefroren.**
-- **Stopp-Regel.** Claude hält an und fragt Sebastian, sobald
-  - der Umfang gegenüber der Freigabe wächst (neue Welle, neues Modul, weiteres Repo),
-  - eine Obergrenze aus 4.3 überschritten würde,
-  - die Planung absehbar länger dauert als der Bau,
-  - aus einem Issue ein Feature wird.
+- **Stopp-Regel.** Claude hält nur an und fragt Sebastian
+  - bei einer echten Umfangsänderung: Der Umfang wächst gegenüber der Freigabe (neue Welle, neues
+    Modul, weiteres Repo), eine Obergrenze aus 4.3 würde überschritten, die Planung dauert
+    absehbar länger als der Bau, oder aus einem Issue wird ein Feature;
+  - vor zerstörerischen oder nicht umkehrbaren Aktionen;
+  - wenn Input fehlt, den nur Sebastian liefern kann;
+  - bei den ausdrücklichen Freigaben, die in der CLAUDE.md des Repos stehen.
+
+  Alles Triviale und Umkehrbare erledigt Claude ohne Rückfrage und berichtet danach.
 - Wird ein Bereich über die Zeit zu komplex und fehleranfällig, ist Zurücksetzen und sauberes
   Neuaufsetzen der Profi-Weg, nicht Weiterflicken.
 
@@ -216,11 +218,18 @@ Lösung ist oft die einfachere, für den Nutzer und im Code.
 - **Die Sitzung baut die Welle selbst**, mit TDD je Task, danach **ein** Review über den ganzen
   Zweig. Umsetzer und Prüfer je Task nur, wenn Sebastian es ausdrücklich wählt.
 - **Parallel arbeiten heißt: unabhängige PRs auf eigenen Arbeitsbäumen**, nicht Subagenten je Task.
-- **Ein Review je PR.** Kritische und wichtige Befunde werden behoben, danach werden genau diese
-  Stellen einmal nachgeprüft. Kein zweites volles Review, keine Review-Runden für Kleinigkeiten.
+- **Reviews nach Risiko.** Ein Fix braucht kein eigenes Review, Tests und CI genügen, außer er
+  berührt Sicherheit, Rechte, Geld und Belege oder Löschen. Dann und bei Begrenzt und Groß gibt es
+  genau **ein** Review je PR, bevorzugt über das eingebaute `/code-review`; berührt der PR
+  Sicherheit, zusätzlich `/security-review`. Kritische und wichtige Befunde werden behoben;
+  nachgeprüft werden danach die Tests der behobenen Stellen, kein zweites Review. Keine
+  Review-Runden für Kleinigkeiten.
 - **Tests:** lokal die betroffenen Suiten; über den Rest entscheidet das CI-Gate.
-- **QA (`/qa`)** läuft bei Größe Groß einmal vor dem Merge der Welle, die das Feature für Nutzer
-  freischaltet. Bei Fix und Begrenzt genügen Tests, CI-Gate und das Review.
+- **Abnahme** bei Größe Groß einmal vor dem Merge der Welle, die das Feature für Nutzer
+  freischaltet: in der laufenden Anwendung gegen die Spec (Akzeptanzkriterien, berührte
+  Checklistenpunkte, Design-Zustände), im Flowkom-Repo auf Staging über den Skill `staging`. Das
+  Ergebnis ist kurz, Befunde außerhalb des Umfangs werden Issues. Bei Fix und Begrenzt genügen Tests, CI-Gate und, wo
+  verlangt, das Review.
 - **Geprüft wird gegen die Spec, nicht gegen alles Denkbare:** Akzeptanzkriterien, die berührten
   Checklistenpunkte und die Design-Zustände (§3). Die Prüfung achtet auch auf §6: Ist etwas
   gebaut, das niemand braucht? Was außerhalb des Umfangs liegt, ist ein Issue, kein Blocker.
