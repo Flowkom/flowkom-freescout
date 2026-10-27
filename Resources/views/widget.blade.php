@@ -35,10 +35,10 @@
 
 <script {!! \Helper::cspNonceAttr() !!}>
 (function(){
-    var API_URL = {!! json_encode($apiUrl) !!};
-    var API_KEY = {!! json_encode($apiKey) !!};
-    // PROJ-861: typisierte Ticketmerkmale, serverseitig erkannt (TicketHints).
-    var HINTS = {!! json_encode($hints ?? new \stdClass()) !!};
+    // PROJ-1036: Modul-Route statt Flowkom direkt — der API-Key bleibt auf dem
+    // Server, die Route prüft den Ticket-Zugriff und erkennt die Merkmale
+    // serverseitig (TicketHints, PROJ-861).
+    var LOOKUP_URL = {!! json_encode($lookupUrl) !!};
     var TRACKING_TPL  = {!! json_encode($trackingTemplate ?? '') !!};
     var TRACKING_ON   = {!! json_encode(!empty($trackingOn)) !!};
     var w = document.getElementById('flowkom-widget');
@@ -53,21 +53,28 @@
         clearW();
         w.appendChild(content);
 
-        var keys = ['email', 'ebay_username', 'ebay_order_id', 'ebay_item_id', 'amazon_order_id', 'order_number', 'channel'];
-        var params = [], hasHint = false;
-        for (var i = 0; i < keys.length; i++) {
-            var v = HINTS[keys[i]];
-            if (v === null || v === undefined || v === '') continue;
-            params.push(keys[i] + '=' + encodeURIComponent(v));
-            if (keys[i] !== 'channel') hasHint = true;
-        }
-        if (!hasHint) { showMsg('Keine Merkmale im Ticket gefunden.'); return; }
-
-        fetch(API_URL + '/api/freescout/lookup?' + params.join('&'), {
-            headers: { 'Authorization': 'Bearer ' + API_KEY }
+        var tokenEl = document.querySelector('meta[name=csrf-token]') || document.querySelector('input[name=_token]');
+        var token = tokenEl ? (tokenEl.content || tokenEl.value) : '';
+        fetch(LOOKUP_URL, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
         })
-        .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-        .then(renderData)
+        .then(function(r) {
+            return r.json().then(function(d) { return { r: r, d: d }; }, function() { return { r: r, d: null }; });
+        })
+        .then(function(res) {
+            if (res.r.ok && res.d && !res.r.redirected) { renderData(res.d); return; }
+            // Meldungen der Modul-Route sind fertige Sätze (keine Merkmale,
+            // kein Zugriff, Flowkom nicht erreichbar, API-Key abgelehnt …).
+            if (res.d && res.d.error) { showMsg(res.d.error); return; }
+            // FreeScout-Sitzung oder CSRF-Token abgelaufen
+            if (res.r.redirected || res.r.status === 401 || res.r.status === 419) {
+                showMsg('Sitzung abgelaufen — bitte die Seite neu laden.');
+                return;
+            }
+            showMsg('Fehler: HTTP ' + res.r.status);
+        })
         .catch(function(err) { showMsg('Fehler: ' + err.message); });
     }
 

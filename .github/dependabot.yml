@@ -1,0 +1,16 @@
+# PROJ-1036 (G2): Actions sind auf Commit-SHAs gepinnt. Dependabot hebt SHA und
+# Versionskommentar gemeinsam; frisch veröffentlichte Versionen reifen eine Woche.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    target-branch: "main"
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore(ci)"
