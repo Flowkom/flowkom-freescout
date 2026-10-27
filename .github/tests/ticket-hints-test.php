@@ -73,5 +73,35 @@ check('Otto – Auftrags-Nr', TicketHints::extract(
 // 8) FreeScout-Ticketnummer im Betreff einer Kundenmail ist kein eBay-Kontext
 check('Leeres Ticket', TicketHints::extract('', '', '', []), ['channel' => 'email', 'email' => null, 'order_number' => null]);
 
+// --- lookupParams: was die Modul-Route an Flowkom schickt (PROJ-1036) ---
+function checkSame($name, $actual, $expected) {
+    global $fail;
+    if ($actual !== $expected) {
+        $fail++;
+        echo "FAIL  $name: " . var_export($actual, true) . ", erwartet " . var_export($expected, true) . "\n";
+        return;
+    }
+    echo "ok    $name\n";
+}
+
+// 9) eBay: nur gesetzte Merkmale, Artikelnummer bleibt Artikelnummer
+checkSame('lookupParams – eBay ohne Bestellnr.', TicketHints::lookupParams(TicketHints::extract(
+    'kaeufer_b42_x7@members.ebay.de',
+    'kaeufer_b42 hat eine Nachricht gesendet zu Stecknuss-Adapter #197526923798',
+    'eBay - kaeufer_b42',
+    []
+)), [
+    'email' => 'kaeufer_b42_x7@members.ebay.de', 'ebay_username' => 'kaeufer_b42',
+    'ebay_item_id' => '197526923798', 'channel' => 'ebay',
+]);
+
+// 10) Nur der Kanal ist kein Merkmal: keine Abfrage
+checkSame('lookupParams – leeres Ticket', TicketHints::lookupParams(TicketHints::extract('', '', '', [])), []);
+
+// 11) Leere Zeichenkette faellt weg (Flowkom lehnt leere Felder ab)
+checkSame('lookupParams – leere Werte', TicketHints::lookupParams(['email' => '', 'order_number' => '11038', 'channel' => 'email']), [
+    'order_number' => '11038', 'channel' => 'email',
+]);
+
 if ($fail > 0) { echo "\n$fail Fehler\n"; exit(1); }
 echo "\nalle Faelle ok\n";

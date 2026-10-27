@@ -33,7 +33,7 @@ Die Marktplatz-Erkennung läuft über den **Absender** (`…@members.ebay.de`, `
 - Bestellzuordnung im Widget: Flowkom sucht nur exakte Merkmale und meldet Widersprüche, statt zu raten. Ab Flowkom mit PROJ-861 wirkt das auch für ältere Modul-Versionen; die Ampel braucht Modul ≥ 2.5.0.
 - Mail-Pipeline komplett fail-open: Jeder interne Fehler führt zu einem normalen, unveränderten Ticket. Mails können nie verloren gehen.
 - QuickLinks werden kanonisch aus Bestelldaten gebaut — keine tokenisierten Links aus Mails (Ablauf/Leak-Gefahr).
-- Der Flowkom-API-Key sollte in Flowkom auf den FreeScout-Lookup-Endpoint beschränkt sein.
+- Der Flowkom-API-Key bleibt auf dem FreeScout-Server und steht nie im Seitenquelltext. Das Widget fragt über die Modul-Route `/flowkom/lookup/{Ticket}`; sie verlangt eine FreeScout-Anmeldung, prüft den Ticketzugriff des Agents wie die Ticketansicht und erkennt die Merkmale selbst. Ein Agent erreicht so nur Daten zu Tickets, die er sehen darf, und nichts mehr, sobald sein FreeScout-Konto gelöscht oder gesperrt ist (ab Modul 2.5.2).
 
 ## Updates
 

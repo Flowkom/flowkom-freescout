@@ -20,6 +20,9 @@ class TicketHints
     /** So viele juengste Kundennachrichten werden nach Merkmalen durchsucht. */
     const MAX_THREADS = 5;
 
+    /** Merkmale, die Flowkoms /api/freescout/lookup versteht. */
+    const LOOKUP_KEYS = ['email', 'ebay_username', 'ebay_order_id', 'ebay_item_id', 'amazon_order_id', 'order_number', 'channel'];
+
     /** Pro Request je Konversation nur einmal rechnen (Widget + QuickLinks). */
     private static $cache = [];
 
@@ -135,6 +138,29 @@ class TicketHints
         $hints['order_number'] = self::firstMatch([$subject], $patterns);
 
         return $hints;
+    }
+
+    /**
+     * Merkmale → Query-Parameter fuer Flowkoms /api/freescout/lookup
+     * (PROJ-1036: baut jetzt die Modul-Route, nicht mehr der Browser).
+     * Leere Werte fallen weg, denn Flowkom lehnt leere Felder ab. Liefert [],
+     * wenn ausser dem Kanal kein Merkmal vorliegt.
+     */
+    public static function lookupParams(array $hints)
+    {
+        $params = [];
+        $hasHint = false;
+        foreach (self::LOOKUP_KEYS as $key) {
+            $value = $hints[$key] ?? null;
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $params[$key] = (string) $value;
+            if ($key !== 'channel') {
+                $hasHint = true;
+            }
+        }
+        return $hasHint ? $params : [];
     }
 
     public static function channel($email)

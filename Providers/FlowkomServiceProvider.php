@@ -11,7 +11,6 @@ use Modules\Flowkom\Services\Mergers;
 use Modules\Flowkom\Services\QuickLinks;
 use Modules\Flowkom\Services\Settings;
 use Modules\Flowkom\Services\SidebarFit;
-use Modules\Flowkom\Services\TicketHints;
 
 define('FLOWKOM_MODULE', 'flowkom');
 
@@ -30,7 +29,6 @@ class FlowkomServiceProvider extends ServiceProvider
 
         Settings::register();
         $this->registerRoutes();
-        $this->registerCsp();
 
         // Mail-Pipeline: nur der Merger fasst eingehende Mails an (Betreff/
         // Absender-Matching, KEIN Body-Touch). Fail-open.
@@ -143,6 +141,7 @@ class FlowkomServiceProvider extends ServiceProvider
 
         // PROJ-588: Brainflow-Save für ALLE Agents (keine admin-Rolle) —
         // Ticket-Zugriff prüft der Controller über die ConversationPolicy.
+        // PROJ-1036: ebenso der Widget-Lookup (API-Key bleibt serverseitig).
         \Route::group([
             'middleware' => ['web', 'auth'],
             'prefix'     => 'flowkom',
@@ -150,50 +149,24 @@ class FlowkomServiceProvider extends ServiceProvider
         ], function () {
             \Route::post('/brainflow/save/{conversationId}', 'FlowkomController@brainflowSave')
                 ->name('flowkom.brainflow_save');
-        });
-    }
-
-    /**
-     * fetch() zur Flowkom-API erlauben (FreeScouts CSP ist default-src 'self').
-     */
-    private function registerCsp(): void
-    {
-        $apiUrl = Settings::apiUrl();
-        if (empty($apiUrl)) {
-            return;
-        }
-        $host = parse_url($apiUrl, PHP_URL_HOST);
-        if (!$host) {
-            return;
-        }
-        \Eventy::addFilter('csp.custom', function ($csp) use ($host) {
-            return $csp . ' connect-src \'self\' ' . $host . ';';
+            \Route::post('/lookup/{conversationId}', 'FlowkomController@lookup')
+                ->name('flowkom.lookup');
         });
     }
 
     private function registerWidget(): void
     {
-        $apiUrl = Settings::apiUrl();
-        $apiKey = Settings::apiKey();
-        if (empty($apiUrl) || empty($apiKey)) {
+        if (empty(Settings::apiUrl()) || empty(Settings::apiKey())) {
             return;
         }
 
-        \Eventy::addAction('conversation.after_customer_sidebar', function ($conversation) use ($apiUrl, $apiKey) {
-            // Merkmale serverseitig und typisiert (PROJ-861) — das Widget liest
-            // nichts mehr aus dem DOM und schickt nie eine Artikelnummer als
-            // Bestellnummer. Fail-open: ohne Merkmale zeigt das Widget einen Hinweis.
-            try {
-                $hints = TicketHints::fromConversation($conversation);
-            } catch (\Throwable $e) {
-                \Helper::log(FLOWKOM_MODULE, 'TicketHints-ERROR: ' . $e->getMessage());
-                $hints = TicketHints::extract((string) ($conversation->customer_email ?? ''), '', '', []);
-            }
-
+        // PROJ-1036: Der API-Key steht nicht mehr im Seitenquelltext. Das
+        // Widget ruft die Modul-Route flowkom.lookup; sie prüft den Ticket-
+        // Zugriff, erkennt die Merkmale serverseitig (TicketHints, PROJ-861)
+        // und fragt Flowkom mit dem gespeicherten Key ab.
+        \Eventy::addAction('conversation.after_customer_sidebar', function ($conversation) {
             echo view('flowkom::widget', [
-                'apiUrl'           => $apiUrl,
-                'apiKey'           => $apiKey,
-                'hints'            => $hints,
+                'lookupUrl'        => url('/flowkom/lookup/' . (int) $conversation->id),
                 'trackingTemplate' => Settings::trackingTemplate(),
                 'trackingOn'       => Settings::featureOn('tracking_reply'),
             ])->render();
